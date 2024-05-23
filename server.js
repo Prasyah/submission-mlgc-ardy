@@ -1,58 +1,61 @@
-'use strict';
-
+require('dotenv').config();
+ 
 const Hapi = require('@hapi/hapi');
-const Boom = require('@hapi/boom');
-const loadModel = require('./src/services/loadModel');
-const registerRoutes = require('./router'); // Import your routes
-
-const startServer = async () => {
-  const server = Hapi.server({
-    port: 8080,
-    host: 'localhost',
-    routes: {
-      cors: true,
-      validate: {
-        failAction: (request, h, err) => {
-          throw err;
-        }
-      }
-    }
-  });
-
-  // Load model and set as server.app property
-  try {
+const routes = require('./router');
+const loadModel = require('../services/loadModel');
+const InputError = require('../exceptions/InputError');
+ 
+(async () => {
+    const server = Hapi.server({
+        port: 3000,
+        host: '0.0.0.0',
+        routes: {
+            cors: {
+              origin: ['*'],
+            },
+            payload: {
+                multipart: true, 
+                maxBytes: 1000000,
+            }
+        },
+    });
+ 
     const model = await loadModel();
     server.app.model = model;
-  } catch (error) {
-    console.error('Error loading model:', error);
-    process.exit(1);
-  }
-
-  // Register routes
-  registerRoutes(server);
-
-  // Server extension to handle specific errors
-  server.ext('onPreResponse', (request, h) => {
-    const response = request.response;
-
-    if (Boom.isBoom(response)) {
-      if (response.output.statusCode === 413) {
-        return h.response({
-          status: 'fail',
-          message: 'Payload content length greater than maximum allowed: 1000000',
-        }).code(413);
-      }
-    }
-
-    return h.continue;
-  });
-
-  // Start the server
-  await server.start();
-  console.log(`Server running on ${server.info.uri}`);
-};
-
-startServer().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+ 
+    server.route(routes);
+ 
+    server.ext('onPreResponse', function (request, h) {
+        const response = request.response;
+    
+        if (response instanceof InputError) {
+            const newResponse = h.response({
+                status: 'fail',
+                message: `${response.message}`,
+            })
+            newResponse.code(response.output.statusCode)
+            return newResponse;
+        }
+    
+        if (response.isBoom) {
+            const statusCode = response.output.statusCode;
+            if (statusCode === 400) {
+                return h.response({
+                    status: 'fail',
+                    message: 'Terjadi kesalahan dalam melakukan prediksi'
+                }).code(statusCode);
+            }
+            if (statusCode === 413) {
+                return h.response({
+                    status: 'fail',
+                    message: 'Payload content length greater than maximum allowed: 1000000'
+                }).code(statusCode);
+            }
+        }
+    
+        return h.continue;
+    });
+ 
+    await server.start();
+    console.log(`Server start at: ${server.info.uri}`);
+})();
