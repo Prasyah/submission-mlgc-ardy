@@ -2,7 +2,7 @@
 
 const Hapi = require('@hapi/hapi');
 const Boom = require('@hapi/boom');
-const loadModel = require('./services/loadModel');
+const loadModel = require('./src/services/loadModel');
 const registerRoutes = require('./router'); // Import your routes
 
 const startServer = async () => {

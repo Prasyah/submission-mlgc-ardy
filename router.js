@@ -1,7 +1,7 @@
 const Boom = require('@hapi/boom');
 const crypto = require('crypto');
-const { predict } = require('./controllers/predictController');
-const { getDataFromFirestore } = require('./controllers/dataController');
+const { predict } = require('./src/controllers/predictController');
+const { getDataFromFirestore } = require('./src/controllers/dataController');
 
 const Firestore = require('@google-cloud/firestore');
 const firestore = new Firestore();
